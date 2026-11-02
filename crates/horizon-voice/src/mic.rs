@@ -47,7 +47,8 @@ fn build<T>(
     tx: Sender<Vec<f32>>,
 ) -> Option<cpal::Stream>
 where
-    T: cpal::SizedSample + cpal::IntoSample<f32>,
+    T: cpal::SizedSample,
+    f32: cpal::FromSample<T>,
 {
     use cpal::traits::DeviceTrait;
     let acc = std::sync::Arc::new(std::sync::Mutex::new(Accumulator::new(in_rate, channels)));
@@ -84,7 +85,8 @@ impl Accumulator {
 
     fn push<T>(&mut self, data: &[T], tx: &Sender<Vec<f32>>)
     where
-        T: cpal::IntoSample<f32>,
+        T: Copy,
+        f32: cpal::FromSample<T>,
     {
         let frames = data.len() / self.channels;
         if frames == 0 {
@@ -94,7 +96,7 @@ impl Accumulator {
             let i = (self.pos as usize).min(frames - 1);
             let mut mono = 0.0f32;
             for c in 0..self.channels {
-                mono += data[i * self.channels + c].into_sample::<f32>();
+                mono += f32::from_sample(data[i * self.channels + c]);
             }
             mono /= self.channels as f32;
             self.out.push(mono);
